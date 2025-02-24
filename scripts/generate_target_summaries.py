@@ -103,7 +103,8 @@ try:
         generated_text = tokenizer.decode(generated_ids[0, inputs.shape[1]:])
 
         generated.append({'id': row['id'], 'generated_text': generated_text})
-        logger.info(f"Generated text for ID {row['id']}: {generated_text[:100]}...")
+        print(f"Generated text for ID {row['id']}")
+        print(generated_text)
 
         if i % 100 == 0:
             pd.DataFrame(generated).to_pickle(out_dir)  # Save progress every 100 iterations
