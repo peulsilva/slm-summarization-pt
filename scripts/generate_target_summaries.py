@@ -3,6 +3,7 @@ parser = argparse.ArgumentParser(description='Generates samples of a given instr
 parser.add_argument("--model_name", help="Model name", required=True)
 parser.add_argument("--chat_template", help="Chat template", required=True)
 parser.add_argument("--n_words", help="Number of words in summary", required=True)
+parser.add_argument("--split", help="Split (train vs test)", required=True)
 args = parser.parse_args()
 
 import os
@@ -16,11 +17,35 @@ from unsloth.chat_templates import get_chat_template
 from IPython.display import clear_output
 import logging
 
+import os
+
+while "notebooks" in os.getcwd():
+    os.chdir("..")
+
+
+import sys
+sys.path.insert(0, './')
+
+from src.train_test_split import stratified_train_test_split
+
 model_name = args.model_name
 chat_template = args.chat_template
 n_words = args.n_words
+split = args.split
 
 dataset = pd.read_json("data/wikipedia_dataset.json")
+
+train_df , test_df = stratified_train_test_split(dataset, test_size=0.4)
+train_idx = train_df.id.tolist()
+test_idx = test_df.id.tolist()
+
+if split == 'train':
+    mask = dataset.id.isin(train_idx) 
+    dataset = dataset[mask] 
+
+if split == 'test':
+    mask = dataset.id.isin(test_idx) 
+    dataset = dataset[mask] 
 
 tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2.5-0.5B-Instruct", cache_dir = '/Data')
 
@@ -62,7 +87,7 @@ tokenizer = get_chat_template(
 
 FastLanguageModel.for_inference(model)
 
-out_dir = f"data/generated_dataset_{n_words}_{model_name.split('/')[-1]}.pkl"
+out_dir = f"data/generated_dataset_{split}_{n_words}_{model_name.split('/')[-1]}.pkl"
 
 generated = []
 
@@ -77,7 +102,7 @@ else:
     processed_ids = set()
 
 try:
-    for i, (_, row) in tqdm(enumerate(dataset.sort_values("num_tokens", ascending=False).iterrows()), total=5000):
+    for i, (_, row) in tqdm(enumerate(dataset.sort_values("num_tokens", ascending=False).iterrows()), total=len(dataset)):
         if row['id'] in processed_ids:
             continue  # Skip already processed IDs
         
